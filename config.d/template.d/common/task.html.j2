@@ -1,0 +1,7 @@
+{% if issue %}
+<img src="{{ issue.fields.issuetype.iconUrl }}" title="{{ issue.fields.issuetype.name }}">
+<a href='{{ jira_base_url }}/browse/{{ issue.key }}' target="_blank">{{ issue.key }}</a>
+{{ issue.fields.summary }}
+{% else %}
+<span>Issue undefined</span>
+{% endif %}

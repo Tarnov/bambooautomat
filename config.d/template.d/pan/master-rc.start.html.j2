@@ -1,0 +1,48 @@
+{%- set mail_to = "panbet-release@marathonbet.ru" -%}
+{%- set jira_project = "PAN" -%}
+{%- from 'common/build-variables.j2' import mail_to, bamboo_base_url, jira_base_url, mcore_base_url, build_key, branch,
+                                            build_is_triggered, merge_base, master_hash,
+                                            mcore_web_base_url with context -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+{%- set pan_eligible_for_merge_url = '%s/atlassian/jira/filters/pan/eligible_for_merge/jql' % mcore_base_url -%}
+{%- set pan_base_jql = requests.get(pan_eligible_for_merge_url).content.decode("utf-8") -%}
+{%- set web_eligible_for_merge_url = '%s/atlassian/jira/filters/web/eligible_for_merge/jql' % mcore_web_base_url -%}
+{%- set web_base_jql = requests.get(web_eligible_for_merge_url).content.decode("utf-8") -%}
+{%- set parent_tasks_amount = jira.search_issues("%s AND issuetype not in subTaskIssueTypes()" %
+                                                 pan_base_jql, maxResults=1).total -%}
+{%- set tasks_list = jira.search_issues("%s AND (issuetype != Bug AND issuetype not in subTaskIssueTypes()
+                                                 OR issueFunction in subtasksOf('issuetype != Bug'))" % pan_base_jql,
+                                                 maxResults=False) -%}
+{%- set bugs_list = jira.search_issues("%s AND (issuetype = Bug AND issuetype not in subTaskIssueTypes()
+                                                OR issueFunction in subtasksOf('issuetype = Bug'))" % pan_base_jql,
+                                                maxResults=False) -%}
+{%- set new_ver = unreleased_ver[0].name -%}
+{%- set subject = 'Релиз-кандидат PANBET %s' % new_ver -%}
+{%- set mail_id = master_hash -%}
+{% include "common/mail-headers.j2" %}
+
+Коллеги!
+<br><br><br>
+Началось формирование релиз-кандидата.
+Задачи в релизную сборку принимаются только с разрешения
+<a href="mailto:oleg_zasl@marathonbet.ru">Олега Заславского</a>,
+<a href="mailto:khomyakov@marathonbet.ru">Сергея Хомякова</a> и/или
+<a href="mailto:geen@marathonbet.ru">Евгения Березовского</a>
+в письменном виде на <a href="mailto:deveng@marathonbet.ru">deveng@marathonbet.ru</a>
+(или по звонку) до 20:00 завтрашнего дня
+и под вашу личную ответственность (так как не будут проверены автоматическим тестированием).
+<br><br><br>
+Cписок задач на включение в релиз-кандидат (<b>{{ parent_tasks_amount }}</b>):
+<br>
+{%- if tasks_list.total > 0 -%}
+    <br>
+    Задачи:
+    {%- set issue_list = tasks_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}
+{%- if bugs_list.total > 0 -%}
+    <br>
+    Исправления ошибок:
+    {%- set issue_list = bugs_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}

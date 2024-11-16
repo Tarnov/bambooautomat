@@ -1,0 +1,27 @@
+<html lang="en">
+{%- include 'common/head.html.j2' -%}
+{%- set jira_project = "PAN" -%}
+{%- set jira_base_url = config["DEFAULT"]["jira_base_url"] -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+<body>
+{%- set check_name = 'Not Merged subtasks check' -%}
+{%- set check_jql = 'project = PAN AND status not in (Merged, Closed)
+                     AND issueFunction in subtasksOf("project = PAN AND status = Merged")' -%}
+{% include 'common/jql-check.html.j2' %}
+
+{%- set transition_subject = 'Close released tasks' -%}
+{%- set transition_name = 'Go Live' -%}
+{%- set transition_jql = 'project = PAN AND status = MERGED AND issuetype in subTaskIssueTypes()' -%}
+{%- set transition_fields = None -%}
+{% include 'common/bulk-transition.html.j2' %}
+{%- set transition_jql = 'project = PAN AND status = MERGED AND issuetype not in subTaskIssueTypes()' -%}
+{% include 'common/bulk-transition.html.j2' %}
+
+{%- set transition_subject = 'Close released configs' -%}
+{%- set transition_name = 'Close Issue' -%}
+{%- set transition_jql = 'type = "Config Change" AND project not in ( FEED, MPS, MPSC, OROPAY, PANCFG, SPROXY, WLINE )
+                          AND status != Backlog  AND status != Closed
+                          AND issueFunction in linkedIssuesOf("status = Closed", "requires config")' -%}
+{%- set transition_fields = { 'resolution': {'name': 'Done'} } -%}
+{% include 'common/bulk-transition.html.j2' %}
+</body></html>

@@ -1,0 +1,26 @@
+{%- set parents_list = {} -%}
+{%- set children_list = {} -%}
+{%- for issue in issue_list -%}
+    {%- if not issue.fields.parent -%}
+        {%- do parents_list.update({issue.key:issue}) -%}
+    {%- else -%}
+        {%- do children_list.update({issue.key:issue}) -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- for key, issue in parents_list.items() -%}
+    <li>{% include 'common/task.html.j2' %}</li>
+    {%- if issue.fields.subtasks -%}
+        {%- for issue in issue.fields.subtasks -%}
+            {%- if issue.key in children_list -%}
+                <li>&nbsp;&nbsp;&nbsp;&nbsp;{% include 'common/task.html.j2' %}</li>
+                {%- do children_list.pop(issue.key) -%}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- if children_list -%}
+    <li>Subtasks:</li>
+    {%- for key, issue in children_list.items() -%}
+        <li>&nbsp;&nbsp;&nbsp;&nbsp;{% include 'common/task.html.j2' %}</li>
+    {%- endfor -%}
+{%- endif -%}

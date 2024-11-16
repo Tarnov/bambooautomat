@@ -1,0 +1,59 @@
+{%- set mail_to = "panbet-release@marathonbet.ru" -%}
+{%- set jira_project = "PAN" -%}
+{%- from 'common/build-variables.j2' import mail_to, bamboo_base_url, jira_base_url, build_key, branch,
+                                            build_is_triggered, merge_base, master_hash with context -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+{%- set new_ver = unreleased_ver[0].name -%}
+{%- if merge_base != master_hash -%}
+    {%- set merge_base_tag = cmd("git describe --match 'build*' --tags %s" % merge_base).output -%}
+    {%- do print("ERROR: old merge base - %s" % merge_base_tag) -%}
+    {%- do exit(1) -%}
+{%- endif -%}
+{%- set chech_jql_1 = "issuekey in issuesInCommitsSinceUntil('PAN', 'panbet', master, %s)
+                       AND (status!=Merged OR fixVersion!=%s)" % (branch, new_ver) -%}
+{%- set chech_list_1 = jira.search_issues(chech_jql_1, maxResults=False) -%}
+{%- if chech_list_1 -%}
+    {%- do print("ERROR: There are non-Merged tasks or tasks with wrong fixVersion in RC:") -%}
+    {%- for issue in chech_list_1 -%}
+        {%- do print( "%s/browse/%s - %s" % (jira_base_url, issue.key, issue.fields.summary)) -%}
+    {%- endfor -%}
+    {%- do exit(1) -%}
+{%- endif -%}
+{%- set base_jql = "issuekey in issuesInCommitsFromTo(PAN, panbet, %s)" % branch -%}
+{%- set parent_tasks_amount = jira.search_issues("%s AND issuetype not in subTaskIssueTypes()" %
+                                                 base_jql, maxResults=1).total -%}
+{%- set tasks_list = jira.search_issues("%s AND (issuetype != Bug AND issuetype not in subTaskIssueTypes()
+                                                 OR issueFunction in subtasksOf('issuetype != Bug'))" % base_jql,
+                                                 maxResults=False) -%}
+{%- set bugs_list = jira.search_issues("%s AND (issuetype = Bug AND issuetype not in subTaskIssueTypes()
+                                                OR issueFunction in subtasksOf('issuetype = Bug'))" % base_jql,
+                                                maxResults=False) -%}
+{%- set subject = 'Релиз-кандидат PANBET %s' % new_ver -%}
+{%- set mail_id = master_hash -%}
+{% include "common/mail-headers.j2" %}
+
+Коллеги!
+<br><br><br>
+Формирование релиз-кандидата завершено, сборка передана на автоматически тестирование.
+Задачи в релизную сборку принимаются только с разрешения
+<a href="mailto:oleg_zasl@marathonbet.ru">Олега Заславского</a>,
+<a href="mailto:khomyakov@marathonbet.ru">Сергея Хомякова</a> и/или
+<a href="mailto:geen@marathonbet.ru">Евгения Березовского</a>
+в письменном виде на <a href="mailto:deveng@marathonbet.ru">deveng@marathonbet.ru</a>
+(или по звонку) до 20:00 завтрашнего дня
+и под вашу личную ответственность (так как не будут проверены автоматическим тестированием).
+<br><br><br>
+Список задач (<b>{{ parent_tasks_amount }}</b>), попавших в релиз-кандидат:
+<br>
+{%- if tasks_list.total > 0 -%}
+    <br>
+    Задачи:
+    {%- set issue_list = tasks_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}
+{%- if bugs_list.total > 0 -%}
+    <br>
+    Исправления ошибок:
+    {%- set issue_list = bugs_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}

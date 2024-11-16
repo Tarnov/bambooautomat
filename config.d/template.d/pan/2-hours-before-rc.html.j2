@@ -1,0 +1,81 @@
+{%- set jira_project = "PAN" -%}
+{%- set mail_to = "panbet-release@marathonbet.ru" -%}
+{%- from 'common/build-variables.j2' import mail_to, bamboo_base_url, jira_base_url, mcore_base_url, build_key, branch,
+                                            build_is_triggered, merge_base, master_hash,
+                                            mcore_web_base_url with context -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+{%- set pan_eligible_for_rtm_url = '%s/atlassian/jira/filters/pan/eligible_for_rtm/jql' % mcore_base_url -%}
+{%- set pan_eligible_for_rtm_jql = requests.get(pan_eligible_for_rtm_url).content.decode("utf-8") -%}
+{%- set pan_eligible_for_merge_url = '%s/atlassian/jira/filters/pan/eligible_for_merge/jql' % mcore_base_url -%}
+{%- set pan_eligible_for_merge_jql = requests.get(pan_eligible_for_merge_url).content.decode("utf-8") -%}
+{%- set web_eligible_for_merge_url = '%s/atlassian/jira/filters/web/eligible_for_merge/jql' % mcore_web_base_url -%}
+{%- set web_eligible_for_merge_jql = requests.get(pan_eligible_for_merge_url).content.decode("utf-8") -%}
+{%- set eligible_for_rtm_tasks = jira.search_issues(pan_eligible_for_rtm_jql, maxResults=False) -%}
+{%- set eligible_for_merge_tasks= jira.search_issues(pan_eligible_for_merge_jql, maxResults=False) -%}
+{%- set new_ver = unreleased_ver[0].name -%}
+{%- set subject = 'Релиз-кандидат PANBET %s' % new_ver -%}
+{%- set mail_id = master_hash -%}
+{% include "common/mail-headers.j2" %}
+
+Коллеги, добрый день!
+<br><br><br>
+Через 2 часа начнется формирование очередного релиз-кандидата для тестирования и последующего релиза.
+Просьба посмотреть все свои задачи (и ваших коллег по группе) и поставить их в соответствующие статусы
+(<b>Ready to Merge</b>), чтобы они попали в сборку релиз-кандидата.
+<br>
+После, задачи в сборку релиз-кандидата будут приниматься только с разрешения
+<a href="mailto:oleg_zasl@marathonbet.ru">Олега Заславского</a>,
+<a href="mailto:khomyakov@marathonbet.ru">Сергея Хомякова</a> и/или
+<a href="mailto:geen@marathonbet.ru">Евгения Березовского</a>
+в письменном виде на <a href="mailto:deveng@marathonbet.ru">deveng@marathonbet.ru</a>
+(или по звонку) до 20:00 завтрашнего дня.
+<br><br>
+Список протестированных задач, готовых к релизу (не имеющих ограничений для релиза),
+но не в статусе <b>Ready to Merge</b> доступен по
+<a style="text-decoration: none"
+   href="http://manticore.mara.local/atlassian/jira/filters/pan/eligible_for_rtm">ссылке</a>.
+<br>
+Список готовых к релизу задач (в статусе <b>Ready to Merge</b>) доступен по
+<a style="text-decoration: none"
+   href="http://manticore.mara.local/atlassian/jira/filters/pan/eligible_for_merge">ссылке</a>
+(если это не так, незамедлительно свяжитесь с <a href="mailto:deveng@marathonbet.ru">deveng@marathonbet.ru</a>
+для выяснения причин).
+<br>
+График соотношения тестируемых и готовых к тестированию задач доступен по
+<a style="text-decoration: none" href="http://manticore.mara.local/statistics">ссылке</a>.
+<br><br>
+Так же УБЕДИТЕЛЬНАЯ ПРОСЬБА с момента получения первого письма о начале подготовки релиз-кандидата
+и до получения последнего письма о завершении подготовки всем быть на рабочем месте (по возможности) –
+в процессе подготовки могут возникать вопросы требующие немедленного реагирования компетентных лиц.
+<br><br>
+Предварительный список задач-кандидатов на включение в релиз-кандидат (<b>{{ eligible_for_merge_tasks.total }}</b>):
+<table style="margin: 5px; border: 1px solid gray">
+    <tbody>
+    <tr style="vertical-align: top">
+        <th>
+            {%- if eligible_for_rtm_tasks.total > 0 -%}
+                <span>TESTED</span>
+            {%- endif -%}
+        </th>
+        <th>
+            {%- if eligible_for_merge_tasks.total > 0 -%}
+                <span>READY TO MERGE</span>
+            {%- endif -%}
+        </th>
+    </tr>
+    <tr style="vertical-align: top">
+        <td style="border: 1px solid gray">
+            <ul style="list-style-type: none;">
+                {%- set issue_list = eligible_for_rtm_tasks -%}
+                {% include 'common/task-and-subtask-list.html.j2' %}
+            </ul>
+        </td>
+        <td style="border: 1px solid gray">
+            <ul style="list-style-type: none;">
+                {%- set issue_list = eligible_for_merge_tasks -%}
+                {% include 'common/task-and-subtask-list.html.j2' %}
+            </ul>
+        </td>
+    </tr>
+    </tbody>
+</table>

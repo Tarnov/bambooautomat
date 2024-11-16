@@ -1,0 +1,35 @@
+<html lang="en">
+{%- include 'common/head.html.j2' -%}
+{%- set jira_project = "PAN" -%}
+{%- set jira_base_url = config["DEFAULT"]["jira_base_url"] -%}
+{%- set mcore_base_url = config["DEFAULT"]["mcore_base_url"] -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+<body>
+{%- set eligible_for_merge_url = '%s/atlassian/jira/filters/pan/eligible_for_merge/jql' % mcore_base_url -%}
+{%- set eligible_for_merge_jql = requests.get(eligible_for_merge_url).content.decode("utf-8") -%}
+
+{%- set transition_subject = 'Merge' -%}
+{%- set transition_name = 'Merge to Hotfix' -%}
+{%- set transition_jql = eligible_for_merge_jql -%}
+{%- set transition_fields = None -%}
+{% include 'common/bulk-transition.html.j2' %}
+
+{%- set update_subject = 'FixVersions' -%}
+{%- set update_jql = eligible_for_merge_jql -%}
+{%- set update_fields = {'fixVersions': [{'name': unreleased_ver[0].name}]} -%}
+{% include 'common/bulk-update.html.j2' %}
+
+{%- if env["bamboo_dry_run"] == "false" -%}
+    {%- do pass -%}
+    <br><span class="success-text">
+{%- else -%}
+    <br><span class="dry-run-text">[DRY-RUN]Fields-update:</span> { 'fixVersions': {{ fixVersions }} }
+    <br><span class="dry-run-text">[DRY-RUN]
+{%- endif -%}
+FixVersion OK:</span>
+<li>{% include 'common/task.html.j2' %}</li>
+
+{%- set check_jql = "project = PAN AND status not in (Closed, Merged) AND fixVersion is not EMPTY" -%}
+{%- set check_name = 'FixVersion check' -%}
+{% include 'common/jql-check.html.j2' %}
+</body></html>

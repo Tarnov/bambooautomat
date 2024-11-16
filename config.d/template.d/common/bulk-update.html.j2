@@ -1,0 +1,17 @@
+{%- set update_list = jira.search_issues(update_jql, maxResults=False) -%}
+{%- if update_list -%}
+    {%- set success_list, fail_list = [], [] -%}
+    {%- if env["bamboo_dry_run"] == "false" -%}
+        {%- set success_list, fail_list = multi_threading('update', update_list, fields=update_fields) -%}
+        <h4>
+    {%- else -%}
+        {%- for issue in update_list -%}
+            {%- do success_list.append([issue, True]) -%}
+        {%- endfor -%}
+        <br><span class="dry-run-text">[DRY-RUN]Fields-update:</span> {{ update_fields }}
+        <h4 class="dry-run-text">[DRY-RUN]
+    {%- endif -%}
+    <a href='{{ jira_base_url }}/issues/?jql={{ update_jql|urlencode }}'>{{ update_subject }}</a>:</h4>
+    {%- set subject = update_subject -%}
+    {% include 'common/bulk-result-list.html.j2' %}
+{%- endif -%}

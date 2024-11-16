@@ -1,0 +1,9 @@
+From: deveng@marathonbet.ru
+To: {{ mail_to }}
+Subject: =?UTF-8?B?{{ subject|b64encode }}?=
+Content-Language: en-US
+Content-Type: text/html; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Message-ID: <{{ build_key }}@{{ mail_id }}>
+In-Reply-To: <{{ mail_id }}@{{ mail_id }}>
+References: <{{ mail_id }}@{{ mail_id }}>

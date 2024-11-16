@@ -1,0 +1,19 @@
+{%- set transition_jql_result = jira.search_issues(transition_jql, maxResults=False) -%}
+{%- if transition_jql_result -%}
+    {%- set success_list, fail_list = [], [] -%}
+    {%- if env["bamboo_dry_run"] == "false" -%}
+        {%- set success_list, fail_list = multi_threading(jira.transition_issue, transition_jql_result,
+                                                          transition_name, transition_fields) -%}
+        <h4>
+    {%- else -%}
+        {%- for issue in transition_jql_result -%}
+            {%- do success_list.append([issue, True]) -%}
+        {%- endfor -%}
+        <br><span class="dry-run-text">[DRY-RUN]Transition-name:</span> {{ transition_name }}
+        <br><span class="dry-run-text">[DRY-RUN]Fields-update:</span> {{ transition_fields }}
+        <h4 class="dry-run-text">[DRY-RUN]
+    {%- endif -%}
+    <a href='{{ jira_base_url }}/issues/?jql={{ transition_jql|urlencode }}'>{{ transition_subject }}</a>:</h4>
+    {%- set subject = transition_subject -%}
+    {% include 'common/bulk-result-list.html.j2' %}
+{%- endif -%}

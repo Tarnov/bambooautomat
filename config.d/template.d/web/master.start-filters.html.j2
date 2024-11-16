@@ -1,0 +1,28 @@
+<html lang="en">
+{%- include 'common/head.html.j2' -%}
+{%- set jira_project = "WEB" -%}
+{%- set jira_base_url = config["DEFAULT"]["jira_base_url"] -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+<body>
+{%- set update_subject = 'affectedVersion REMOVE' -%}
+{%- set update_jql = 'project = WEB AND type != Bug AND status != Closed AND affectedVersion is not EMPTY' -%}
+{%- set update_fields = { 'versions': [] } -%}
+{% include 'common/bulk-update.html.j2' %}
+
+{%- set update_subject = 'affectedVersion ADD' -%}
+{%- set update_jql = 'project = WEB AND type = Bug AND status != Closed AND affectedVersion is EMPTY' -%}
+{%- set update_fields = { 'versions': [{'name': released_ver[-1].name}] } -%}
+{% include 'common/bulk-update.html.j2' %}
+
+{%- set jql_fixVersion_check_1 = 'project = WEB AND status = Merged
+                                  AND (fixVersion is EMPTY)' -%}
+{%- set jql_fixVersion_check_2 = 'project = WEB AND status not in (Merged, Closed)
+                                  AND fixVersion is not EMPTY' -%}
+{%- set jql_check_list = { 'Merged and No FixVersion': jql_fixVersion_check_1,
+                           'FixVersion and Not Merged': jql_fixVersion_check_2,
+                           'pancfg-add-to-rc': 'filter=pancfg-add-to-rc',
+                           'pancfg-remove-from-rc': 'filter=pancfg-remove-from-rc',}  -%}
+{%- for check_name, check_jql in jql_check_list.items() -%}
+    {% include 'common/jql-check.html.j2' %}
+{%- endfor -%}
+</body></html>

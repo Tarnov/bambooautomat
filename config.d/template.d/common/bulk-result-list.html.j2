@@ -1,0 +1,17 @@
+{%- if fail_list -%}
+    {%- do set_exit_code(1) -%}
+    <span class="error-text">{{ subject }} FAIL:</span>
+    {%- for item in fail_list -%}
+        {%- set issue = item[0] -%}
+        {%- set result = item[1] -%}
+        <li>{% include 'common/task.html.j2' %}<br><span class="error-text">({{ result }})</span></li>
+    {%- endfor -%}
+    <br>
+{%- endif -%}
+{%- if success_list -%}
+    <span class="success-text">{{ subject }} OK:</span>
+    {%- for item in success_list -%}
+        {%- set issue = item[0] -%}
+        <li>{% include 'common/task.html.j2' %}</li>
+    {%- endfor -%}
+{%- endif -%}

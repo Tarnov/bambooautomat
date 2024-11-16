@@ -1,0 +1,11 @@
+{%- set check_result = jira.search_issues(check_jql, maxResults=False) -%}
+<h4><a href='{{ jira_base_url }}/issues/?jql={{ check_jql|urlencode }}'>{{ check_name }}</a>:
+{%- if check_result -%}
+    <span class="error-text">FAIL</span></h4>
+    {%- for issue in check_result -%}
+        {% include 'common/task-and-subtask-list.html.j2' %}
+    {%- endfor -%}
+    {%- do set_exit_code(1) -%}
+{%- else -%}
+    <span class="success-text">OK</span></h4>
+{%- endif -%}

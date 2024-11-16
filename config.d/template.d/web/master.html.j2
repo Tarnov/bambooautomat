@@ -1,0 +1,72 @@
+{%- set mail_to = "panbet-release@marathonbet.ru" -%}
+{%- set jira_project = "WEB" -%}
+{%- from 'common/build-variables.j2' import mail_to, bamboo_base_url, jira_base_url, build_key, branch,
+                                            build_is_triggered, merge_base, master_hash with context -%}
+{%- from 'common/jira-versions.j2' import released_ver, unreleased_ver with context -%}
+{%- set curent_tag = cmd("git describe --tags --abbrev=0 --match 'build/*' origin/master").output -%}
+{%- set curent_ver = curent_tag.split('/')[-1] -%}
+{%- set previous_ver = released_ver[-2].name -%}
+{%- set previous_tag = cmd("git describe --tags --abbrev=0 --match 'build/*' origin/master~2").output -%}
+{%- set previous_tag_hash = cmd("git rev-parse %s" % previous_tag).output -%}
+{%- if curent_ver != released_ver[-1].name -%}
+    {%- do print("ERROR: git version '%s' doesn't match last released versions in Jira '%s'" %
+                  (curent_ver, released_ver[-1].name)) -%}
+    {%- do exit(1) -%}
+{%- endif -%}
+{%- set chech_jql_1 = "project = WEB AND issuekey in issuesInCommitsSinceUntil(WEB, panweb, '%s', '%s') AND fixVersion != %s" %
+                        (previous_tag, curent_tag, curent_ver) -%}
+{%- set chech_jql_2 = "project = WEB AND fixVersion = %s AND issuekey not in issuesInCommitsSinceUntil(WEB, panweb, '%s', '%s')" %
+                        (curent_ver, previous_tag, curent_tag) -%}
+{%- set chech_list_1 = jira.search_issues(chech_jql_1, maxResults=False) -%}
+{%- set chech_list_2 = jira.search_issues(chech_jql_2, maxResults=False) -%}
+{%- if chech_list_1.total > 0 -%}
+    {%- do print("ERROR: There are tasks with wrong fixVersion in release:") -%}
+    {%- for issue in chech_list_1 -%}
+        {%- do print( "%s/browse/%s - %s" % (jira_base_url, issue.key, issue.fields.summary)) -%}
+    {%- endfor -%}
+    {%- do exit(1) -%}
+{%- elif chech_list_2.total > 0 -%}
+    {%- do print("ERROR: Tasks with fixVersion=%s not in %s:" % (curent_ver, branch)) -%}
+    {%- for issue in chech_list_2 -%}
+        {%- do print( "%s/browse/%s - %s" % (jira_base_url, issue.key, issue.fields.summary)) -%}
+    {%- endfor -%}
+    {%- do exit(1) -%}
+{%- endif -%}
+{%- set base_jql = "issuekey in issuesInCommitsSinceUntil(WEB, panweb, '%s', '%s')" % (previous_tag, curent_tag) -%}
+{%- set parent_tasks_amount = jira.search_issues("%s AND issuetype not in subTaskIssueTypes()" %
+                                                 base_jql, maxResults=1).total -%}
+{%- set tasks_list = jira.search_issues("%s AND (issuetype != Bug AND issuetype not in subTaskIssueTypes()
+                                                 OR issueFunction in subtasksOf('issuetype != Bug'))" % base_jql,
+                                                 maxResults=False) -%}
+{%- set bugs_list = jira.search_issues("%s AND (issuetype = Bug AND issuetype not in subTaskIssueTypes()
+                                                OR issueFunction in subtasksOf('issuetype = Bug'))" % base_jql,
+                                                maxResults=False) -%}
+{%- set cfg_list = jira.search_issues("project = PANCFG
+                                      AND issuekey in issuesInCommitsSinceUntil(CONF, webpanbet, 'build/%s', master)" %
+                                      previous_ver, maxResults=False) -%}
+{%- set subject = 'Релиз WEB %s' % curent_ver -%}
+{%- set mail_id = previous_tag_hash -%}
+{% include "common/mail-headers.j2" %}
+
+Коллеги!
+<br><br>
+Список задач (<b>{{ parent_tasks_amount }}</b>), попавших в релиз:
+<br>
+{%- if tasks_list.total > 0 -%}
+    <br>
+    Задачи:
+    {%- set issue_list = tasks_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}
+{%- if bugs_list.total > 0 -%}
+    <br>
+    Исправления ошибок:
+    {%- set issue_list = bugs_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}
+{%- if cfg_list.total > 0 -%}
+    <br>
+    Конфиги ({{ cfg_list.total }}):
+    {%- set issue_list = cfg_list -%}
+    {% include 'common/task-and-subtask-list.html.j2' %}
+{%- endif -%}

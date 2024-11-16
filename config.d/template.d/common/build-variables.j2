@@ -1,0 +1,13 @@
+{%- set mail_to = mail_to -%}
+{%- if env["bamboo_mail_to"] != "" -%}
+    {%- set mail_to = env["bamboo_mail_to"] -%}
+{%- endif -%}
+{%- set bamboo_base_url = config["DEFAULT"]["bamboo_base_url"] -%}
+{%- set jira_base_url = config["DEFAULT"]["jira_base_url"] -%}
+{%- set mcore_base_url = config["DEFAULT"]["mcore_base_url"] -%}
+{%- set mcore_web_base_url = config["DEFAULT"]["mcore_web_base_url"] -%}
+{%- set build_key = env["bamboo_buildResultKey"] -%}
+{%- set branch = env["bamboo_planRepository_branch"] -%}
+{%- set build_is_triggered = "bamboo_dependency_parent_0" in env -%}
+{%- set merge_base = cmd("git merge-base %s origin/master" % branch).output -%}
+{%- set master_hash = cmd("git rev-parse origin/master").output -%}

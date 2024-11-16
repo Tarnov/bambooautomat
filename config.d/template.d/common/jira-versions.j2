@@ -1,0 +1,15 @@
+{%- set released_ver = [] -%}
+{%- set unreleased_ver = [] -%}
+{%- for version in jira.project_versions(jira_project) -%}
+    {%- if not version.archived -%}
+        {%- if version.released -%}
+            {%- do released_ver.append( version ) -%}
+        {%- else -%}
+            {%- do unreleased_ver.append( version ) -%}
+        {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- if not unreleased_ver -%}
+    {%- do print("ERROR: unreleased versions in Jira not found") -%}
+    {%- do exit(1) -%}
+{%- endif -%}

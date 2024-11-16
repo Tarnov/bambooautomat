@@ -1,0 +1,69 @@
+{%- set mail_to = "deveng@marathonbet.ru, qa_autotest@marathonbet.ru, amitkevich@marathonbet.ru, lsaenko@marathonbet.ru" -%}
+{%- from 'common/build-variables.j2' import mail_to, bamboo_base_url, jira_base_url, build_key, branch,
+                                            build_is_triggered, merge_base, master_hash with context -%}
+{%- if merge_base != master_hash -%}
+    {%- set merge_base_tag = cmd("git describe --match 'build*' --tags %s" % merge_base).output -%}
+    {%- do print("ERROR: old merge base - %s" % merge_base_tag) -%}
+    {%- do exit(1) -%}
+{%- endif -%}
+{%- if build_is_triggered -%}
+    {%- set parent_build = env["bamboo_dependency_parent_0"] -%}
+{%- else -%}
+    {%- if env["bamboo_parent_build"] != ""  -%}
+        {%- set parent_build = env["bamboo_parent_build"] -%}
+    {%- else -%}
+        {%- do print("ERROR: variable parent_build is empty, run build customized and overrride it with build-key") -%}
+        {%- do exit(1) -%}
+    {%- endif -%}
+{%- endif -%}
+{%- set panbet_url = "http://git.mara.local/projects/PAN/repos/panbet" -%}
+{%- set base_jql = "issuekey in issuesInCommitsFromTo(PAN, panbet, %s)
+                    AND issuetype not in subTaskIssueTypes()" % branch -%}
+{%- set tasks_list = jira.search_issues("%s AND issuetype != Bug" % base_jql, maxResults=False) -%}
+{%- set bugs_list = jira.search_issues("%s AND issuetype = Bug" % base_jql, maxResults=False) -%}
+{%- set configs_jql = "issueFunction in linkedIssuesOfAll('issuekey in issuesInCommitsFromTo(PAN, panbet, %s)',
+                       'requires config')" % branch -%}
+{%- set configs_list = jira.search_issues(configs_jql, maxResults=False) -%}
+{%- set config_files_list = cmd('git diff --name-only --no-renames origin/master..HEAD').output.splitlines()
+                            |select('regexp', '.*(\.properties|\.xml|\.yml|\.yaml)')
+                            |reject('regexp', '.*(/resources/|/WEB-INF/|pom\.xml|build/|/assembly/).*') -%}
+{%- set subject = 'Branch %s build %s' % (branch, parent_build) -%}
+{%- set mail_id = merge_base -%}
+{% include "common/mail-headers.j2" %}
+
+Build #: <a href='{{ bamboo_base_url }}/browse/{{ parent_build }}'> {{ bamboo_base_url }}/browse/{{ parent_build }}</a>
+
+<br><br>Список задач (<b>{{ tasks_list.total + bugs_list.total }}</b>):
+<br><br>Задачи ({{ tasks_list.total }}):<br>
+{%- for issue in tasks_list -%}
+    <li>
+        <img src="{{ issue.fields.issuetype.iconUrl }}" title="{{ issue.fields.issuetype.name }}">
+        <a href='{{ jira_base_url }}/browse/{{ issue.key }}' target="_blank">{{ issue.key }}</a>
+        {{ issue.fields.summary }}
+    </li>
+{%- endfor -%}
+
+<br><br>Исправления ошибок ({{ bugs_list.total }}):<br>
+{%- for issue in bugs_list -%}
+    <li>
+        <img src="{{ issue.fields.issuetype.iconUrl }}" title="{{ issue.fields.issuetype.name }}">
+        <a href='{{ jira_base_url }}/browse/{{ issue.key }}' target="_blank">{{ issue.key }}</a>
+        {{ issue.fields.summary }}
+    </li>
+{%- endfor -%}
+
+<br><br>Список задач на изменение конфигурации ({{ configs_list.total }}):<br>
+{%- for issue in configs_list -%}
+    <li>
+        <img src="{{ issue.fields.issuetype.iconUrl }}" title="{{ issue.fields.issuetype.name }}">
+        <a href='{{ jira_base_url }}/browse/{{ issue.key }}' target="_blank">{{ issue.key }}</a>
+        {{ issue.fields.summary }}
+    </li>
+{%- endfor -%}
+
+<br><br>Список измененных конфигурационных файлов:<br>
+{%- for file in config_files_list -%}
+    <li>
+        <a href='{{ panbet_url }}/compare/diff?targetBranch=master&sourceBranch={{ branch }}#{{ file }}'>{{ file }}</a>
+    </li>
+{%- endfor -%}
